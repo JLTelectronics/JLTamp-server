@@ -17,6 +17,7 @@ from ..security import new_invite, norm_email
 from .. import config, mailer
 from ..deps import require_admin, create_session
 from ..instellingen import servernaam as _servernaam
+from ..account_wissen import wis_gebruiker
 
 router = APIRouter()
 
@@ -662,21 +663,7 @@ def delete_user(user_id: int, admin: User = Depends(require_admin)):
         if user.id == admin.id:
             raise HTTPException(status_code=400, detail="Kinsto dysels net wiskje")
         _guard_last_admin(db, user)
-        db.execute(delete(AuthSession).where(AuthSession.user_id == user_id))
-        db.execute(delete(UserLibraryAccess).where(UserLibraryAccess.user_id == user_id))
-        db.execute(delete(LikedTrack).where(LikedTrack.user_id == user_id))
-        db.execute(delete(SubsonicKey).where(SubsonicKey.user_id == user_id))
-        db.execute(delete(SubsonicStar).where(SubsonicStar.user_id == user_id))
-        db.execute(delete(Meta).where(Meta.key == f"subsonic_queue:{user_id}"))
-        # A playlist's items and every per-user row must go too, or they orphan.
-        pl_ids = [p.id for p in db.execute(
-            select(Playlist).where(Playlist.user_id == user_id)).scalars()]
-        if pl_ids:
-            db.execute(delete(PlaylistItem).where(PlaylistItem.playlist_id.in_(pl_ids)))
-        db.execute(delete(Playlist).where(Playlist.user_id == user_id))
-        db.execute(delete(UserTrackState).where(UserTrackState.user_id == user_id))
-        db.execute(delete(PlayEvent).where(PlayEvent.user_id == user_id))
-        db.delete(user)
+        wis_gebruiker(db, user)
         db.commit()
         return {"ok": True}
     finally:

@@ -27,6 +27,12 @@ router = APIRouter(tags=["app"])
 
 META_SLEUTEL = "app_min_version"
 
+# De seizoens-achtergrond die de beheerder voor iedereen aanzet. Eén waarde,
+# geen platform-onderscheid: het is een sfeer, niet een technische eis.
+META_ACHTERGROND = "app_background"
+ACHTERGROND_MODI = ("off", "vuurwerk", "kerst", "confetti", "koningsdag",
+                    "halloween", "sinterklaas", "valentijn", "pasen", "carnaval")
+
 # Waar de app te halen is. Staat hier en niet in de app, zodat een verhuizing
 # naar een ander adres geen nieuwe app-versie kost.
 STORE = {
@@ -106,5 +112,55 @@ def zet_eis(
             db.add(Meta(key=META_SLEUTEL, value=waarde))
         db.commit()
         return {"ok": True, **alles[p], "platform": p}
+    finally:
+        db.close()
+
+
+# ── Seizoens-achtergrond ─────────────────────────────────────────────────────
+#
+# Eén knop voor de beheerder: zet een feestelijke live-achtergrond aan voor
+# iedereen (vuurwerk met oud & nieuw, sneeuw met kerst, confetti, oranje met
+# Koningsdag). "off" = uit, dan ziet elke gebruiker weer zijn eigen keuze.
+def _lees_achtergrond(db) -> str:
+    rij = db.get(Meta, META_ACHTERGROND)
+    mode = (rij.value if rij and rij.value else "").strip().lower()
+    return mode if mode in ACHTERGROND_MODI else "off"
+
+
+@router.get("/app/background")
+def achtergrond(user: User | None = Depends(optional_user)):
+    """Welke seizoens-achtergrond er voor iedereen aanstaat.
+
+    Tokenloos, net als /app/requirement: de app haalt dit bij het opstarten op,
+    nog voordat er een gebruiker aan te pas komt. "off" = niets opleggen.
+    """
+    db = SessionLocal()
+    try:
+        return {"mode": _lees_achtergrond(db)}
+    finally:
+        db.close()
+
+
+@router.post("/app/background")
+def zet_achtergrond(
+    mode: str = Body("off", embed=True),
+    user: User = Depends(require_admin),
+):
+    """Zet de seizoens-achtergrond voor iedereen. Alleen de beheerder.
+
+    `{"mode":"vuurwerk"}` zet het vuurwerk aan; `{"mode":"off"}` zet het uit.
+    """
+    m = (mode or "off").strip().lower()
+    if m not in ACHTERGROND_MODI:
+        raise HTTPException(400, f"mode moet een van {ACHTERGROND_MODI} zijn")
+    db = SessionLocal()
+    try:
+        rij = db.get(Meta, META_ACHTERGROND)
+        if rij:
+            rij.value = m
+        else:
+            db.add(Meta(key=META_ACHTERGROND, value=m))
+        db.commit()
+        return {"ok": True, "mode": m}
     finally:
         db.close()

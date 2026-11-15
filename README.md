@@ -65,12 +65,12 @@ Docker container with SQLite, and needs no external account or cloud service.
 | **Together** | *Listen Together* sessions kept in sync by the server, with reactions and host hand-over. Shared playlists with share codes and per-entry attribution. |
 | **Discovery** | Smart playlists, a home block of lists built from each user's own listening, *On this day*, *Year in review* and listening stats. |
 | **JLTamp Radio** | A 24/7 HLS station mixed from your library, with a weekly programme schedule, artist separation, loudness matching and optional spoken presenters. |
-| **Karaoke** | Vocals off or softly guided, lyrics aligned to the vocals, and estimated chords — computed once per track and cached. Sing along for points: the melody is measured from the separated vocals and your voice is compared to it on the device, in a full-screen game with falling notes. |
-| **Play along** | Chords, a fretboard or a keyboard that follow the song, with a **Listen** mode that hears whether you play the right chord. Pitch and chord detection run on the phone itself; nothing leaves the device. |
+| **Karaoke** | Vocals off or softly guided, lyrics aligned to the vocals, and estimated chords — computed once per track and cached. Sing along for points: the melody is measured from the separated vocals and your voice is compared to it on the device, in a full-screen game with falling notes, with a personal record and a scoreboard per song. |
+| **Play along** | Chords, a fretboard or a keyboard that follow the song, with a **Listen** mode that hears whether you play the right chord. Pitch and chord detection run on the phone itself; nothing leaves the device. **Practice** slows a song down without changing its pitch or warping the voice (Rubber Band R3), and can leave the guitar out. |
 | **Social** | Party mode where guests request and vote from their phone's browser without an account, music quiz games, and two-deck DJ mode. |
 | **Subsonic API** | Use Symfonium, Feishin, Substreamer, play:Sub, DSub or any other Subsonic/OpenSubsonic client with this server, alongside the JLTamp apps. |
-| **Import** | Rebuild a Spotify playlist, album or track from a link by matching its track list against your own files, using Spotify's official Web API and your own key. |
-| **Administration** | Invite-based accounts, per-user library access and rights, a server overview, feature switches without restarts, maintenance mode and nightly database backups. |
+| **Import** | Rebuild a Spotify or Deezer playlist, album or track from a link by matching its track list against your own files — Spotify through its official Web API with your own key, Deezer through its public API (no key needed for public lists). Editorial lists from the platforms are kept apart as *Mixes*. |
+| **Administration** | Invite-based accounts (the invite email opens the JLTamp app on a phone), per-user library access and rights, a server overview, feature switches without restarts, maintenance mode and nightly database backups. Deleting an account removes everything of that user. |
 | **AI (optional)** | A separate, self-hosted engine for prompt-based playlists, weekly mixes, genre inference and a *New for you* list. |
 
 <p align="center">
@@ -223,7 +223,7 @@ your LAN; the app picks it up automatically. Setup: [`ai/README.md`](ai/README.m
 </details>
 
 <details>
-<summary><b>Spotify import</b> — rebuild a playlist from a link</summary>
+<summary><b>Spotify and Deezer import</b> — rebuild a playlist from a link</summary>
 
 <br>
 
@@ -238,6 +238,9 @@ their position and are filled in automatically after a later scan finds them.
    `SPOTIFY_CLIENT_ID` and `SPOTIFY_CLIENT_SECRET`. Albums and tracks work from here.
 3. For playlists, choose **Link** once and sign in with a Spotify account.
 4. Enable the importer with `JLTAMP_IMPORTERS=true` or its switch in Admin.
+
+**Deezer** links (playlist, album or track) need no setup beyond step 4: public
+lists are read through Deezer's public API without a key.
 
 </details>
 

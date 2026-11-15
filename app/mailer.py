@@ -126,6 +126,22 @@ def _link_fallback(href: str) -> str:
             f'<span style="color:{_TEXT_2};word-break:break-all">{_html.escape(href)}</span></p>')
 
 
+APP_STORE_URL = "https://apps.apple.com/app/id6807401608"
+PLAY_STORE_URL = "https://play.google.com/store/apps/details?id=com.jltamp.app"
+
+
+def _winkels() -> str:
+    """Twee knoppen naar de app-winkels, voor wie de app nog niet heeft."""
+    knop = ('<a href="{h}" style="display:inline-block;margin:0 5px 8px;padding:10px 18px;'
+            'border-radius:999px;border:1px solid #3a3a3a;color:#FFFFFF;font-size:14px;'
+            'font-weight:600;text-decoration:none">{l}</a>')
+    return (f'<p style="margin:26px 0 8px;color:{_TEXT_2};font-size:14px;line-height:20px">'
+            f'<b style="color:#FFFFFF">Nog geen JLTamp-app?</b> Download hem eerst, '
+            f'en tik daarna op de knop hierboven.</p>'
+            f'<div>{knop.format(h=_html.escape(APP_STORE_URL, quote=True), l="App Store (iPhone)")}'
+            f'{knop.format(h=_html.escape(PLAY_STORE_URL, quote=True), l="Google Play (Android)")}</div>')
+
+
 def _shell(heading: str, body: str, footer: str = "") -> str:
     """Eén lijst om elke mail heen: logo, kop, inhoud, voetregel. `heading` wordt
     hier ge-escaped; `body` en `footer` zijn al HTML."""
@@ -241,12 +257,19 @@ def send_invite(to_email: str, invite_token: str, inviter: str,
     msg.set_content(
         f"Hoi,\n\n"
         f"{inviter} heeft je uitgenodigd voor {server_name} — een privé muziekserver.\n\n"
-        f"Open deze link om een wachtwoord te kiezen en meteen in te loggen:\n"
-        f"{link}\n\n"
+        f"1. Installeer de JLTamp-app (als je hem nog niet hebt):\n"
+        f"   iPhone: {APP_STORE_URL}\n"
+        f"   Android: {PLAY_STORE_URL}\n\n"
+        f"2. Open daarna op je telefoon deze link. Die opent de app, waar je een\n"
+        f"   wachtwoord kiest en meteen bent ingelogd:\n"
+        f"   {link}\n\n"
         f"De link werkt één keer. Verwacht je dit niet? Dan kun je deze mail negeren.\n"
     )
-    body = (_p(f"{_html.escape(inviter)} heeft je uitgenodigd voor een privé muziekserver.")
-            + _button(link, "Kies een wachtwoord en log in")
+    body = (_p(f"{_html.escape(inviter)} heeft je uitgenodigd voor een privé muziekserver. "
+               f"Open deze mail op je telefoon: de knop opent de JLTamp-app, waar je een "
+               f"wachtwoord kiest en meteen bent ingelogd.")
+            + _button(link, "Open in de JLTamp-app")
+            + _winkels()
             + _link_fallback(link))
     msg.add_alternative(
         _shell(server_name, body, "De link werkt één keer. Verwacht je dit niet? Negeer deze mail."),

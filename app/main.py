@@ -31,6 +31,7 @@ from .routers import spel
 from .routers import admin_status as admin_status_router
 from .routers import karaoke
 from .routers import melodie as melodie_router
+from .routers import oefen as oefen_router
 from .routers import akkoorden
 from .routers import subsonic
 from .routers import noten
@@ -43,7 +44,7 @@ logging.basicConfig(level=logging.INFO,
                     format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 log = logging.getLogger("jltamp")
 
-VERSION = "0.4.3"
+VERSION = "0.4.4"
 
 
 @asynccontextmanager
@@ -123,6 +124,7 @@ for r in (auth.router, media.router, stream.router, artwork.router,
           dj.router,
           artistinfo.router, popular.router, charts.router, diag.router, appversion.router, karaoke.router,
           melodie_router.router,
+          oefen_router.router,
           presentator.router,
           radio_router.router,
           subsonic.router):
@@ -293,6 +295,12 @@ def _delete_account():
 WEB_DIR = Path(os.environ.get("WEB_DIR", "/web"))
 _INDEX = WEB_DIR / "index.html"
 
+# index.html mag NOOIT gecachet worden: hij verwijst naar de JS-bundel met een
+# hash in de naam. Cachet de browser hem, dan blijft iemand na een nieuwe deploy
+# naar de oude bundel wijzen (en mist nieuwe functies) terwijl die bundel al weg
+# is. De bundels in /_expo hebben zelf een hash en mogen juist eeuwig blijven.
+_INDEX_HEADERS = {"Cache-Control": "no-cache, must-revalidate"}
+
 if WEB_DIR.is_dir() and _INDEX.exists():
     # Serve hashed static assets directly.
     for sub in ("_expo", "assets", "static"):
@@ -302,7 +310,7 @@ if WEB_DIR.is_dir() and _INDEX.exists():
 
     @app.get("/")
     def _root_index():
-        return FileResponse(_INDEX)
+        return FileResponse(_INDEX, headers=_INDEX_HEADERS)
 
     @app.get("/{full_path:path}")
     def _spa(full_path: str):
@@ -315,7 +323,7 @@ if WEB_DIR.is_dir() and _INDEX.exists():
                 return FileResponse(candidate)
         except Exception:
             pass
-        return FileResponse(_INDEX)
+        return FileResponse(_INDEX, headers=_INDEX_HEADERS)
 else:
     @app.get("/")
     def root():

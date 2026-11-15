@@ -7,6 +7,12 @@ FROM python:3.12-slim
 RUN apt-get update \
     && apt-get install -y --no-install-recommends ffmpeg \
     && rm -rf /var/lib/apt/lists/*
+# Rubber Band R3 voor oefenen (routers/oefen.py). Een eigen laag, zodat de
+# grote ffmpeg-laag hierboven uit de cache blijft: die opnieuw downloaden
+# strandde op 26-10 twee keer op een beschadigd pakket van de spiegel.
+RUN apt-get -o Acquire::Retries=3 update \
+    && apt-get -o Acquire::Retries=3 install -y --no-install-recommends rubberband-cli \
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 

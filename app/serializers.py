@@ -180,6 +180,9 @@ def playlist_dict(pl: Playlist, leaf_count: int, duration_ms: int) -> dict:
         "composite": f"/art/{rk}",
         "addedAt": pl.created_at or 0,
         "updatedAt": pl.updated_at or 0,
+        # Een redactionele mix (Spotify/Deezer zelf), geïmporteerd — de app zet
+        # die bij de Mixes in plaats van bij je eigen playlists.
+        "mix": bool(getattr(pl, "is_mix", False)),
     }
 
 

@@ -24,7 +24,7 @@ from fastapi.responses import PlainTextResponse
 from pydantic import BaseModel
 from sqlalchemy import select
 
-from .. import spotify
+from .. import spotify, deezer
 from ..deps import require_admin, require_user, accessible_library_ids
 from ..db import SessionLocal
 from ..ids import playlist_key
@@ -119,6 +119,8 @@ def _detect(url: str) -> str:
     u = (url or "").lower()
     if "spotify.com" in u or u.startswith("spotify:"):
         return "spotify"
+    if "deezer.com" in u:
+        return "deezer"
     return ""
 
 
@@ -146,16 +148,28 @@ def import_playlist(url: str = "", title: str = "", user: User = Depends(require
     url = (url or "").strip()
     source = _detect(url)
     if not source:
-        raise HTTPException(400, "Paste a Spotify playlist link")
+        raise HTTPException(400, "Paste a Spotify or Deezer playlist link")
 
-    _db2 = _S()
-    try:
-        uit = spotify.lees(_db2, url)
-    except spotify.SpotifyFout as e:
-        raise HTTPException(502, str(e))
-    finally:
-        _db2.close()
-    name, items = uit["titel"], uit["items"]
+    afgekapt = False
+    soort = "playlist"       # "album" | "playlist" | "track"
+    is_mix = False           # editorial list from the platform itself?
+    if source == "spotify":
+        _db2 = _S()
+        try:
+            uit = spotify.lees(_db2, url)
+        except spotify.SpotifyFout as e:
+            raise HTTPException(502, str(e))
+        finally:
+            _db2.close()
+        name, items, afgekapt = uit["titel"], uit["items"], uit["afgekapt"]
+        soort, is_mix = uit.get("soort", "playlist"), bool(uit.get("mix"))
+    else:
+        try:
+            uit = deezer.lees(url)
+        except deezer.DeezerFout as e:
+            raise HTTPException(502, str(e))
+        name, items, afgekapt = uit["titel"], uit["items"], uit["afgekapt"]
+        soort, is_mix = uit.get("soort", "playlist"), bool(uit.get("mix"))
     if not items:
         raise HTTPException(404, "No tracks found in that playlist")
 
@@ -163,14 +177,31 @@ def import_playlist(url: str = "", title: str = "", user: User = Depends(require
     try:
         met_plek, unmatched = _match_met_plek(db, user, items)
         now = int(time.time())
+        # Een ALBUM wordt geen playlist. De nummers horen onder hun artiest/album
+        # in de bibliotheek: wat er al staat is zojuist gematcht, en wat ontbreekt
+        # landt na een scan vanzelf onder het juiste album (zie scanner +
+        # los_openstaande). Een los lijstje zou die ordening juist doorbreken.
+        if soort == "album":
+            db.commit()
+            return {
+                "source": source, "kind": "album", "title": (title.strip() or name),
+                "total": len(items), "matched": len(met_plek),
+                "unmatched": unmatched[:100],
+                "pending": len(unmatched), "truncated": afgekapt,
+                "limit": None,
+            }
+
         # ⚠️ De lijst wordt ALTIJD gemaakt, ook als er nu nog niets van in de
         # bibliotheek staat.
         #
         # Komen de ontbrekende nummers later in de bibliotheek, dan loopt de
         # lijst vanzelf vol (zie `los_openstaande`). Zonder lijst was er niets
         # om ze in terug te zetten.
+        #
+        # Een redactionele lijst (Spotify/Deezer zelf) krijgt de mix-markering,
+        # zodat de app hem bij de Mixes zet in plaats van bij je eigen playlists.
         pl = Playlist(user_id=user.id, title=(title.strip() or name),
-                      created_at=now, updated_at=now)
+                      created_at=now, updated_at=now, is_mix=is_mix)
         db.add(pl)
         db.flush()
         for plek, tid in met_plek:
@@ -187,7 +218,8 @@ def import_playlist(url: str = "", title: str = "", user: User = Depends(require
             ))
         db.commit()
         return {
-            "source": source, "title": pl.title, "ratingKey": playlist_key(pl.id),
+            "source": source, "kind": "mix" if is_mix else "playlist",
+            "title": pl.title, "ratingKey": playlist_key(pl.id),
             "total": len(items), "matched": len(met_plek),
             "unmatched": unmatched[:100],
             # Hoeveel er nog openstaan, met hun plek bewaard.

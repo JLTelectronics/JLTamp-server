@@ -280,8 +280,9 @@ def meldingen_opruimen(ouderDan: int = Body(30, embed=True), user: User = Depend
 def onderhoud(user: User = Depends(require_admin)):
     db = SessionLocal()
     try:
-        from .appversion import _lees
+        from .appversion import _lees, _lees_achtergrond
         eis = _lees(db)
+        achtergrond = _lees_achtergrond(db)
         zonder_gain = db.query(func.count(Track.id)).filter(Track.gain_db.is_(None)).scalar() or 0
         alle = db.query(func.count(Track.id)).scalar() or 0
     finally:
@@ -302,6 +303,7 @@ def onderhoud(user: User = Depends(require_admin)):
         db_grootte = 0
     return {
         "appEis": {p: eis.get(p) or {} for p in ("ios", "android")},
+        "appBackground": {"mode": achtergrond},
         "luidheid": {**luid, "zonder": int(zonder_gain), "alle": int(alle)},
         "top40": top40,
         "database": {"grootte": db_grootte},

@@ -211,6 +211,10 @@ class Playlist(Base):
     # een gewone lijst. Zo kan de wekelijkse ronde zijn eigen lijst terugvinden
     # zonder op de titel te zoeken — die mag de eigenaar veranderen.
     feed: Mapped[str] = mapped_column(String, default="", index=True)
+    # Een geïmporteerde "mix": een redactionele lijst van Spotify/Deezer zelf
+    # (Hot Hits NL, Deezer-selecties …), geen door een persoon gemaakte lijst.
+    # De app toont die apart, bij de Mixes in plaats van bij je eigen playlists.
+    is_mix: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
 
 
 class PlaylistMember(Base):
@@ -503,3 +507,22 @@ class SubsonicStar(Base):
     kind: Mapped[str] = mapped_column(String, default="")      # "album" | "artist"
     item_id: Mapped[int] = mapped_column(Integer, default=0)
     created_at: Mapped[int] = mapped_column(Integer, default=0)
+
+
+# ── Zingen met punten (routers/melodie.py) ───────────────────────────────────
+class ZangScore(Base):
+    """Eén keer een nummer gezongen: de punten, voor je record en het scorebord.
+
+    Alleen wat de app zelf telde (services/zingen.ts): punten, perfecte noten,
+    de langste reeks. Geen geluid — dat verlaat het toestel nooit.
+    """
+    __tablename__ = "zang_scores"
+    __table_args__ = (Index("ix_zang_scores_track_punten", "track_id", "punten"),)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    track_id: Mapped[int] = mapped_column(Integer, index=True)
+    punten: Mapped[int] = mapped_column(Integer, default=0)
+    perfect: Mapped[int] = mapped_column(Integer, default=0)
+    noten: Mapped[int] = mapped_column(Integer, default=0)
+    reeks: Mapped[int] = mapped_column(Integer, default=0)
+    gemaakt: Mapped[int] = mapped_column(Integer, default=0)

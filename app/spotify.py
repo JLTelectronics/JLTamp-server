@@ -178,14 +178,16 @@ def _uit_api_items(items: list[dict], vanaf: int) -> list[dict]:
     return uit
 
 
-def _playlist_via_api(db, pid: str) -> tuple[str, list[dict]] | None:
-    """De hele lijst, hoe lang hij ook is. None als er geen koppeling is."""
+def _playlist_via_api(db, pid: str) -> tuple[str, list[dict], str] | None:
+    """De hele lijst, hoe lang hij ook is. None als er geen koppeling is.
+    Derde waarde = de eigenaar-id (voor 'editorial' vs persoonlijk)."""
     token = gebruiker_token(db)
     if not token:
         return None
     kop = _api(f"https://api.spotify.com/v1/playlists/{pid}"
-               f"?fields=name,tracks(total)", token)
+               f"?fields=name,owner(id,display_name),tracks(total)", token)
     naam = (kop.get("name") or "Spotify-playlist").strip()
+    eigenaar = str((kop.get("owner") or {}).get("id") or "")
     items: list[dict] = []
     offset = 0
     while True:
@@ -203,7 +205,7 @@ def _playlist_via_api(db, pid: str) -> tuple[str, list[dict]] | None:
         # Een lijst van tienduizend is geen import maar een ongeluk.
         if offset >= 5000:
             break
-    return naam, items
+    return naam, items, eigenaar
 
 
 def _album_via_api(db, pid: str) -> tuple[str, list[dict]] | None:
@@ -248,10 +250,18 @@ GEEN_SLEUTEL = ("Er staat nog geen Spotify-sleutel op deze server "
                 "(Beheer → Spotify, of SPOTIFY_CLIENT_ID / SPOTIFY_CLIENT_SECRET)")
 
 
+def _is_editorial_spotify(eigenaar_id: str) -> bool:
+    """Spotify's eigen redactionele lijsten (Hot Hits NL, Discover Weekly …)
+    staan op naam van de gebruiker "spotify"."""
+    return (eigenaar_id or "").lower() == "spotify"
+
+
 def lees(db, url: str) -> dict:
-    """Een Spotify-link → {titel, items, bron, afgekapt}.
+    """Een Spotify-link → {titel, items, bron, afgekapt, soort, mix}.
 
     `afgekapt` is alleen waar boven de 5000 nummers (zie _playlist_via_api).
+    `soort` is "album" | "playlist" | "track"; `mix` is waar als de lijst van
+    Spotify zelf komt (editorial) in plaats van van een persoon.
     """
     m = SPOTIFY_LINK.search(url or "")
     if not m:
@@ -262,13 +272,15 @@ def lees(db, url: str) -> dict:
         uit = _track_via_api(db, pid)
         if not uit:
             raise SpotifyFout(GEEN_SLEUTEL)
-        return {"titel": uit[0], "items": uit[1], "bron": "api", "afgekapt": False}
+        return {"titel": uit[0], "items": uit[1], "bron": "api", "afgekapt": False,
+                "soort": "track", "mix": False}
 
     if soort == "album":
         uit = _album_via_api(db, pid)
         if not uit:
             raise SpotifyFout(GEEN_SLEUTEL)
-        return {"titel": uit[0], "items": uit[1], "bron": "api", "afgekapt": False}
+        return {"titel": uit[0], "items": uit[1], "bron": "api", "afgekapt": False,
+                "soort": "album", "mix": False}
 
     uit = _playlist_via_api(db, pid)
     if not uit:
@@ -278,7 +290,7 @@ def lees(db, url: str) -> dict:
         raise SpotifyFout("Een playlist lezen kan pas na een koppeling met een "
                           "Spotify-account (Beheer → Spotify → Koppelen)")
     return {"titel": uit[0], "items": uit[1], "bron": "api",
-            "afgekapt": len(uit[1]) >= 5000}
+            "afgekapt": len(uit[1]) >= 5000, "soort": "playlist", "mix": _is_editorial_spotify(uit[2])}
 
 
 # ── de koppeling ─────────────────────────────────────────────────────────────

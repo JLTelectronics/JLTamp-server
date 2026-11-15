@@ -27,6 +27,7 @@ from .. import mailer
 from ..serializers import user_thumb_ref
 from ..models import Meta, Library
 from ..instellingen import servernaam as _servernaam
+from ..account_wissen import wis_gebruiker
 
 router = APIRouter()
 
@@ -552,8 +553,8 @@ def set_notify(body: NotifyBody, user: User = Depends(require_user)):
 def delete_me(user: User = Depends(require_user)):
     """Self-service account deletion. The server owner cannot delete their own
     account (they own the server); everyone else may remove themselves and ALL
-    their data — sessions, library grants, likes, playlists, per-track state and
-    play history. Mirrors the admin delete cascade in admin_users.delete_user."""
+    their data. The cascade lives in account_wissen.wis_gebruiker, shared with
+    admin_users.delete_user."""
     if config.DEMO:
         raise HTTPException(status_code=403, detail="Not available in the demo")
     if norm_email(user.email) == norm_email(config.ADMIN_EMAIL):
@@ -565,21 +566,7 @@ def delete_me(user: User = Depends(require_user)):
         u = db.get(User, user.id)
         if not u:
             raise HTTPException(status_code=404, detail="User not found")
-        uid = u.id
-        db.execute(delete(AuthSession).where(AuthSession.user_id == uid))
-        db.execute(delete(UserLibraryAccess).where(UserLibraryAccess.user_id == uid))
-        db.execute(delete(LikedTrack).where(LikedTrack.user_id == uid))
-        db.execute(delete(SubsonicKey).where(SubsonicKey.user_id == uid))
-        db.execute(delete(SubsonicStar).where(SubsonicStar.user_id == uid))
-        db.execute(delete(Meta).where(Meta.key == f"subsonic_queue:{uid}"))
-        pl_ids = [p.id for p in db.execute(
-            select(Playlist).where(Playlist.user_id == uid)).scalars()]
-        if pl_ids:
-            db.execute(delete(PlaylistItem).where(PlaylistItem.playlist_id.in_(pl_ids)))
-        db.execute(delete(Playlist).where(Playlist.user_id == uid))
-        db.execute(delete(UserTrackState).where(UserTrackState.user_id == uid))
-        db.execute(delete(PlayEvent).where(PlayEvent.user_id == uid))
-        db.delete(u)
+        wis_gebruiker(db, u)
         db.commit()
         return {"ok": True}
     finally:

@@ -14,7 +14,7 @@ from .db import SessionLocal
 from .models import BeheerLog, Session as AuthSession
 
 # Welke paden een wijziging in Beheer zijn.
-PADEN = ("/admin", "/libraries", "/app/requirement", "/charts/looks", "/charts/top40/refresh")
+PADEN = ("/admin", "/libraries", "/app/requirement", "/app/background", "/charts/looks", "/charts/top40/refresh")
 # Wat er niet in hoort: het veelvuldige of het eigen werk van de server.
 NIET = ("/admin/status", "/admin/overzicht", "/admin/live", "/admin/rescan/stop")
 GEHEIM = ("token", "password", "wachtwoord", "pass", "secret", "image")
